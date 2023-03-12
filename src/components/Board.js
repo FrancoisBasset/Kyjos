@@ -304,7 +304,42 @@ export default class Board extends React.Component {
 	}
 
 	restartGame() {
-		alert();
+		const cards = getNewCardsPack();
+
+		const playerCards = [];
+		const botCards = [];
+		for (let i = 0; i < 12; i++) {
+			playerCards.push(cards.pop());
+			botCards.push(cards.pop());
+		}
+
+		const face = cards.pop();
+		face.visible = true;
+
+		const back = cards.pop();
+
+		this.setState({
+			cards: cards,
+			playerCards: playerCards,
+			botCards: botCards,
+			face: face,
+			back: back,
+			step: 'begin',
+			turn: 'bot',
+			cardsVisible: 0,
+			choice: null,
+			botCardsVisible: 0
+		});
+
+		const index1 = Math.floor(Math.random() * 12);
+		let index2 = index1;
+		while (index1 == index2) {
+			index2 = Math.floor(Math.random() * 12);
+		}
+
+		botCards[index1].visible = true;
+		botCards[index2].visible = true;
+		this.setState({botCards: botCards, botCardsVisible: 2, turn: 'player'});
 	}
 
 	render() {
