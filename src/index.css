@@ -1,0 +1,10 @@
+.card {
+	display: inline-block;
+	margin: 2px;
+	margin-left: 6px;
+	margin-right: 6px;
+}
+
+.card:hover {
+	cursor: pointer;
+}

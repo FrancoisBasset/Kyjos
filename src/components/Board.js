@@ -38,51 +38,29 @@ export default class Board extends React.Component {
 	}
 
 	componentDidMount() {
-		setInterval(() => {
-			if (this.state.turn != 'bot') {
-				return;
-			}
+		const index1 = Math.floor(Math.random() * 12);
+		let index2 = index1;
+		while (index1 == index2) {
+			index2 = Math.floor(Math.random() * 12);
+		}
 
-			if (this.state.step == 'begin') {
-				const index1 = Math.floor(Math.random() * 12);
-				let index2 = index1;
-				while (index1 == index2) {
-					index2 = Math.floor(Math.random() * 12);
-				}
-				this.botPlays(index1);
-				this.botPlays(index2);
-				this.setState({botCardsVisible: 2, turn: 'player'});
-			}
-
-			if (this.state.step == 'game') {
-				const allHidden = this.state.botCards.filter(c => !c.visible);
-
-				if (allHidden.length == 0) {
-					return;
-				}
-
-				let index = Math.floor(Math.random() * allHidden.length);
-				index = this.state.botCards.indexOf(allHidden[index]);
-
-				this.botPlays(index);
-
-				this.setState({turn: 'player'});
-				this.checkFinished();
-			}
-		}, 1);
+		const cards = this.state.botCards;
+		cards[index1].visible = true;
+		cards[index2].visible = true;
+		this.setState({botCardsVisible: 2, turn: 'player'});
 	}
 
 	componentDidUpdate() {
 		this.checkColumns('player', this.state.playerCards);
-		this.checkColumns('bot', this.state.playerCards);
+		this.checkColumns('bot', this.state.botCards);
+
+		if (this.state.step == 'game' && this.state.turn == 'bot') {
+			this.botPlays();
+		}
 	}
 
 	clickDeck() {
 		if (this.state.step == 'begin' || this.state.turn == 'bot') {
-			return;
-		}
-
-		if (this.state.choice != null) {
 			return;
 		}
 		
@@ -180,7 +158,7 @@ export default class Board extends React.Component {
 
 	getScore(cards) {
 		return cards.reduce((sum, card) => {
-			if (card.visible) {
+			if (card.visible || this.state.step == 'game') {
 				sum += card.value;
 			}
 			return sum;
@@ -223,7 +201,18 @@ export default class Board extends React.Component {
 
 		if (playerLast == 0 || botLast == 0) {
 			this.updateScore();
-			this.setState({step: 'end'});
+
+			const playerCards = this.state.playerCards;
+			playerCards.map(c => c.visible = true);
+
+			const botCards = this.state.botCards;
+			botCards.map(c => c.visible = true);
+			
+			this.setState({
+				step: 'end',
+				playerCards: playerCards,
+				botCards: botCards
+			});
 		}
 	}
 
@@ -234,10 +223,84 @@ export default class Board extends React.Component {
 		this.setState({playerScore: playerScore, botScore: botScore});
 	}
 
-	botPlays(i) {
-		const cards = this.state.botCards;
-		cards[i].visible = true;
-		this.setState({botCards: cards});
+	botPlays() {
+		const allHidden = this.state.botCards.filter(c => !c.visible);
+
+		if (allHidden.length == 0) {
+			return;
+		}
+
+		let botCards = this.state.botCards;
+
+		let face = this.state.face;
+		let indexToModify = -1;
+
+		if (this.state.face.value >= 1) {
+			indexToModify = this.checkGoColumns(botCards, 'face');
+		} else if (this.state.face.value <= 0) {
+			for (let i = 0; i < botCards.length; i++) {
+				if (botCards[i].value > 2) {
+					indexToModify = i;
+					break;
+				}
+			}
+		} else {
+			const back = this.state.back;
+			back.visible = true;
+
+			indexToModify = this.checkGoColumns(botCards, 'back');
+		}
+		
+		if (indexToModify == -1) {
+			indexToModify = Math.floor(Math.random() * allHidden.length);
+			indexToModify = this.state.botCards.indexOf(allHidden[indexToModify]);
+
+			botCards[indexToModify].visible = true;
+		} else {
+			face = botCards[indexToModify];
+			face.visible = true;
+			botCards[indexToModify] = this.state.face;
+			botCards[indexToModify].visible = true;
+		}
+
+		this.setState({
+			face: face,
+			botCards: botCards,
+			turn: 'player'
+		});
+		this.checkFinished();
+	}
+
+	checkGoColumns(botCards, bloc) {
+		const cols = botCards.length / 3;
+
+		for (let c = 0; c < cols; c++) {
+			const value = bloc == 'face' ? this.state.face.value : this.state.back.value;
+
+			if (value <= 0) {
+				return;
+			}
+
+			const i1 = value == botCards[c].value && botCards[c].visible;
+			const i2 = value == botCards[c + cols].value && botCards[c + cols].visible;
+			const i3 = value == botCards[c + cols + cols].value && botCards[c + cols + cols].visible;
+
+			if (i1 && i2) {
+				return c + cols + cols;
+			} else if (i2 && i3) {
+				return c;
+			} else if (i1 && i3) {
+				return c + cols;
+			} else if (i1) {
+				return c + cols + cols;
+			} else if (i2) {
+				return c;
+			} else if (i3) {
+				return c + cols;
+			}
+		}
+
+		return -1;
 	}
 
 	restartGame() {
@@ -261,13 +324,13 @@ export default class Board extends React.Component {
 				<br></br>
 				<div className='row'>
 					<div className='col'>
-						<Card value={this.state.face.value} visible={this.state.face.visible} onCardClick={() => this.clickDiscard()} />
+						<Card value={this.state.face.value} selected={this.state.choice == 'face'} visible={this.state.face.visible} onCardClick={() => this.clickDiscard()} />
 					
 					
 						{restartButton}
 					
 					
-						<Card value={this.state.back.value} visible={this.state.back.visible} onCardClick={() => this.clickDeck()} />
+						<Card value={this.state.back.value} selected={this.state.choice == 'back'} visible={this.state.back.visible} onCardClick={() => this.clickDeck()} />
 					</div>
 				</div>
 				<br></br>
