@@ -1,7 +1,7 @@
 import React from 'react';
 
 export default function Card({value, visible, onCardClick, selected}) {
-	const path = visible ? `/card${value}.png` : '/back.png';
+	const path = visible ? `./card${value}.png` : './back.png';
 
 	let style;
 	if (selected) {
